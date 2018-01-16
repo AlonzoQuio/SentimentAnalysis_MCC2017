@@ -3,8 +3,9 @@
 import re
 from nltk.corpus import stopwords
 from gensim.models import Word2Vec
+import numpy as np
 
-TRAINING_SENTENCES = 10000
+TRAINING_SENTENCES = 100
 TRAINING_FILE ='embeddings_training/training_for_embeddings_'+str(TRAINING_SENTENCES) 
 
 stop = stopwords.words('spanish')
@@ -131,7 +132,7 @@ def get_batch(data,start,end):
                 embed.append(d_1)
                 embed.append(d_2)
                 embed.append(d_3)
-            sentence.append(embed)
+                sentence.append(np.array(embed).transpose())
         if sentence:
             if len(sentence) < max_size:
                 deff = max_size - len(sentence)
@@ -140,7 +141,7 @@ def get_batch(data,start,end):
                 embed.append([0.0]*300)
                 embed.append([0.0]*300)
                 for i in range(deff):
-                    sentence.append(embed)
+                    sentence.append(np.array(embed).transpose())
                 #print len(sentence)
                 #print max_size
                 #print content
@@ -159,12 +160,12 @@ def load_glove(path):
 
 def train_embeddings():
     clean_dataset_for_embedings('/home/alonzo/Documentos/Projects/wikipedia_dataset.txt',TRAINING_FILE)
-    print 'Start fasttext'
-    train_fasttext(TRAINING_FILE)
+    #print 'Start fasttext'
+    #train_fasttext(TRAINING_FILE)
     print 'Start glove'
     train_glove(TRAINING_FILE)
-    print 'Start word2vec'
-    train_word2vec(TRAINING_FILE)
+    #print 'Start word2vec'
+    #train_word2vec(TRAINING_FILE)
 
 #train_embeddings()
 
@@ -176,5 +177,8 @@ m_glove    = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENT
 
 data = build_data_set_from_xml('datasets/intertass-train-tagged.xml')
 #data = build_data_set_from_xml('datasets/intertass-test.xml')
-batch,sentiment = get_batch(data,0,10)
-#print batch, sentiment
+batch,sentiment = get_batch(data,0,5)
+sentiment = np.array(sentiment)
+batch = np.array(batch)
+print sentiment.shape
+print batch.shape
