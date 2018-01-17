@@ -164,7 +164,8 @@ def build_data_set_test_from_xml(xml_path,qrel_path):
 # Call Example 
 # batch,sentiment = getBatch(data,1,10)
 def get_batch(data,start,end):
-    max_size = 40
+    #max_s = 0
+    max_size = 19
     batch = []
     sentiment = []
     for b in range(start,end):
@@ -185,6 +186,9 @@ def get_batch(data,start,end):
                 embed.append(d_3)
                 sentence.append(np.array(embed).transpose())
         if sentence:
+            #if max_s < len(sentence):
+            #    max_s = len(sentence)
+            #    print 'LS',max_s
             if len(sentence) < max_size:
                 deff = max_size - len(sentence)
                 embed = []
@@ -219,12 +223,6 @@ def train_embeddings():
     print 'Start word2vec'
     train_word2vec(TRAINING_FILE)
 
-#train_embeddings()
-
-m_fasttext = load_word2vec('embeddings_models/wiki.es_ligth.vec',binary = False)
-m_word2vec = load_word2vec('embeddings_models/SBW-vectors-300-min5_ligth',binary = False)
-m_glove = load_word2vec('embeddings_models/glove_combine_ligth',binary = False)
-
 def combine_models(model_1,model_2):
     new_model = {}
     keys = []
@@ -254,6 +252,19 @@ def save_new_model_from_vocabulary(path):
             model.write(' '+str(e))
         model.write('\n')
     model.close()
+
+
+#train_embeddings()
+
+m_fasttext = load_word2vec('embeddings_models/wiki.es_ligth.vec',binary = False)
+m_word2vec = load_word2vec('embeddings_models/SBW-vectors-300-min5_ligth',binary = False)
+m_glove = load_word2vec('embeddings_models/glove_combine_ligth',binary = False)
+
+#m_fasttext  = load_word2vec('embeddings_models/old/model_fasttext_10000.vec',binary = False)
+#m_word2vec  = load_word2vec('embeddings_models/old/model_word2vec_10000',binary = False)
+#m_glove     = load_word2vec('embeddings_models/old/model_word2vec_10000',binary = False)
+#m_glove = m_word2vec
+
 
 #m_glove = combine_models(m_fasttext,m_word2vec)
 #add_to_vocabulary(build_data_set_from_xml('datasets/intertass-train-tagged.xml'),m_glove)
