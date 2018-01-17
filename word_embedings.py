@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 import numpy as np
 
-TRAINING_SENTENCES = 10000
+TRAINING_SENTENCES = 200
 TRAINING_FILE ='embeddings_training/training_for_embeddings_'+str(TRAINING_SENTENCES) 
 
 stop = stopwords.words('spanish')
@@ -38,8 +38,8 @@ def clean_str(str_input):
     for w in text:
         str_input = str_input + ' ' + w
 
-    str_accent =  ['año' ,'á','é','è','í','ó','ú','ñ','%','#','@','"',"'",'/','-','°','(',')','[',']','.',',',':',';','ç','Ò','²','«','»']
-    str_replace = ['anio','a','e','e','i','o','u','n','' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'c','o','2','','']
+    str_accent =  ['año' ,'á','é','è','í','ó','ú','ñ','%','#','@','"',"'",'/','-','°','(',')','[',']','.',',',':',';','ç','Ò','²','«','»','!','¡','¿','?','*','^']
+    str_replace = ['anio','a','e','e','i','o','u','n','' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'c','o','2','' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ]
     #str_input = str_input.encode("utf-8")
     for s in range(len(str_accent)):
         str_input = str_input.replace(str_accent[s],str_replace[s])
@@ -159,6 +159,7 @@ def build_data_set_test_from_xml(xml_path,qrel_path):
         data.append(temp)
     qrel.close()
     return data
+    
 #%% Get batch for training
 # Call Example 
 # batch,sentiment = getBatch(data,1,10)
@@ -192,9 +193,6 @@ def get_batch(data,start,end):
                 embed.append([0.0]*300)
                 for i in range(deff):
                     sentence.append(np.array(embed).transpose())
-                #print len(sentence)
-                #print max_size
-                #print content
             batch.append(sentence)
             sentiment.append(s)
     return np.array(batch),np.array(sentiment)
@@ -210,7 +208,6 @@ def load_glove(path):
     #return load_word2vec(path,binary = True)
     from gensim.models.keyedvectors import KeyedVectors
     word_vectors = KeyedVectors.load_word2vec_format(path, binary=True)
-    #print word_vectors['nada']
     return word_vectors
 
 def train_embeddings():
@@ -224,18 +221,47 @@ def train_embeddings():
 
 #train_embeddings()
 
-#m_fasttext = load_fast_text('embeddings_models/model_fasttext_'+str(TRAINING_SENTENCES)+'.vec')
-#m_fasttext = load_word2vec('embeddings_models/model_fasttext_'+str(TRAINING_SENTENCES)+'.vec',binary = False)
-#m_glove = load_glove('embeddings_models/model_glove_'+str(TRAINING_SENTENCES)+'_modified')
-#word_vectors = KeyedVectors.load_word2vec_format('embeddings_models/model_glove_1000_modified', binary=True)
-#m_word2vec = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
-#m_glove    = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
+m_fasttext = load_word2vec('embeddings_models/wiki.es_ligth.vec',binary = False)
+m_word2vec = load_word2vec('embeddings_models/SBW-vectors-300-min5_ligth',binary = False)
+m_glove = load_word2vec('embeddings_models/glove_combine_ligth',binary = False)
 
-#data = build_data_set_from_xml('datasets/intertass-train-tagged.xml')
-data = build_data_set_test_from_xml('datasets/intertass-test.xml','datasets/intertass-sentiment.qrel')
-#print data
+def combine_models(model_1,model_2):
+    new_model = {}
+    keys = []
+    for w in model_1.vocab:
+        keys.append(w)
+    for w in keys:
+        if w in model_1 and w in model_2:
+            new_model[w] = (model_1[w] + model_2[w] )/ 2
+    return new_model
+
+vocabulary = {}
+def add_to_vocabulary(data,model):
+    for d,s in data:
+        words = d.split()
+        for w in words:
+            if w not in vocabulary and w in model:
+                vocabulary[w] = model[w]
+
+def save_new_model_from_vocabulary(path):
+    model = file(path,'w')
+    keys = vocabulary.keys()
+    model.write(str(len(keys))+' 300\n')
+    for w in vocabulary:
+        model.write(w)
+        w_v = vocabulary[w]
+        for e in w_v:
+            model.write(' '+str(e))
+        model.write('\n')
+    model.close()
+
+#m_glove = combine_models(m_fasttext,m_word2vec)
+#add_to_vocabulary(build_data_set_from_xml('datasets/intertass-train-tagged.xml'),m_glove)
+#add_to_vocabulary(build_data_set_from_xml('datasets/intertass-development-tagged.xml'),m_glove)
+#add_to_vocabulary(build_data_set_from_xml('datasets/intertass-test.xml'),m_glove)
+#save_new_model_from_vocabulary('embeddings_models/glove_combine_ligth')
+
+#data = build_data_set_test_from_xml('datasets/intertass-test.xml','datasets/intertass-sentiment.qrel')
 #batch,sentiment = get_batch(data,0,1898)
-#sentiment = np.array(sentiment)
-#batch = np.array(batch)
 #print sentiment.shape
 #print batch.shape
