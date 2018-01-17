@@ -119,13 +119,13 @@ def build_data_set_from_xml(xml_path):
         temp.append(content)
         polarity = tweet.find('sentiment').find('polarity').find('value').text
         if polarity == SENTIMENT_POSITIVE:
-            temp.append(1)
-        elif polarity == SENTIMENT_NEGATIVE:
-            temp.append(-1)
-        elif polarity == SENTIMENT_NEUTRAL:
-            temp.append(0)
-        else :
             temp.append(2)
+        elif polarity == SENTIMENT_NEGATIVE:
+            temp.append(0)
+        elif polarity == SENTIMENT_NEUTRAL:
+            temp.append(1)
+        else :
+            temp.append(3)
         data.append(temp)
     return data
 
@@ -149,17 +149,17 @@ def build_data_set_test_from_xml(xml_path,qrel_path):
         #polarity = tweet.find('sentiment').find('polarity').find('value').text
         polarity = qrel.readline().split()[1]
         if polarity == SENTIMENT_POSITIVE:
-            temp.append(1)
-        elif polarity == SENTIMENT_NEGATIVE:
-            temp.append(-1)
-        elif polarity == SENTIMENT_NEUTRAL:
-            temp.append(0)
-        else :
             temp.append(2)
+        elif polarity == SENTIMENT_NEGATIVE:
+            temp.append(0)
+        elif polarity == SENTIMENT_NEUTRAL:
+            temp.append(1)
+        else :
+            temp.append(3)
         data.append(temp)
     qrel.close()
     return data
-    
+
 #%% Get batch for training
 # Call Example 
 # batch,sentiment = getBatch(data,1,10)
