@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 import numpy as np
 
-TRAINING_SENTENCES = 100
+TRAINING_SENTENCES = 10000
 TRAINING_FILE ='embeddings_training/training_for_embeddings_'+str(TRAINING_SENTENCES) 
 
 stop = stopwords.words('spanish')
@@ -32,12 +32,19 @@ def load_word2vec(path,binary = False):
     return word_vectors
 
 def clean_str(str_input):
-    str_accent =  ['año' ,'á','é','è','í','ó','ú','ñ','%','#','@','"','/','-','°','(',')','[',']','.',',',':',';']
-    str_replace = ['anio','a','e','e','i','o','u','n','' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ]
+    str_input = str_input.lower()
+    text = [w for w in str_input.split() if w not in stop]
+    str_input = ''
+    for w in text:
+        str_input = str_input + ' ' + w
+
+    str_accent =  ['año' ,'á','é','è','í','ó','ú','ñ','%','#','@','"',"'",'/','-','°','(',')','[',']','.',',',':',';','ç','Ò','²','«','»']
+    str_replace = ['anio','a','e','e','i','o','u','n','' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'' ,'c','o','2','','']
     #str_input = str_input.encode("utf-8")
     for s in range(len(str_accent)):
         str_input = str_input.replace(str_accent[s],str_replace[s])
-    return re.sub(' +',' ',str_input).lower().rstrip()
+    
+    return re.sub(' +',' ',str_input).rstrip()
 
 def train_word2vec(path):
     i = open(path,'r')
@@ -46,7 +53,7 @@ def train_word2vec(path):
         s = i.readline()
         data.append(s.split(' '))
     i.close()
-    model = Word2Vec(data, size=300, window=5, min_count=5, workers=4)
+    model = Word2Vec(data, size=300, window=5, min_count=1, workers=4)
     model.wv.save_word2vec_format('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
     return model
 
@@ -58,14 +65,27 @@ def train_fasttext(path):
 def train_glove(path):
     import itertools
     from gensim.models.word2vec import Text8Corpus
+    from gensim.scripts.glove2word2vec import glove2word2vec
     from glove import Corpus, Glove
+    #import os
+    #import struct
     sentences = list(itertools.islice(Text8Corpus(path),None))
     corpus = Corpus()
     corpus.fit(sentences, window=10)
     glove = Glove(no_components=300, learning_rate=0.05)
     glove.fit(corpus.matrix, epochs=30, no_threads=4, verbose=True)
     glove.add_dictionary(corpus.dictionary)
-    glove.save('embeddings_models/model_glove_'+str(TRAINING_SENTENCES))
+    file_name = 'embeddings_models/model_glove_'+str(TRAINING_SENTENCES)
+    glove.save(file_name)
+    glove2word2vec(file_name, file_name +'_modified')
+    """
+    command = 'python -m gensim.scripts.glove2word2vec -i ' +file_name+' -o '+file_name+'_modified'
+    os.system(command)
+    with open(file_name+'_modified', mode='rb') as file: # b is important -> binary
+        fileContent = file.read()
+        print 'Content',fileContent
+    """
+    print 'Finished'
     return glove
 
 def get_word2vec_encode(word):
@@ -109,6 +129,36 @@ def build_data_set_from_xml(xml_path):
         data.append(temp)
     return data
 
+def build_data_set_test_from_xml(xml_path,qrel_path):
+    qrel = file(qrel_path,'r')
+    SENTIMENT_POSITIVE = 'P'
+    SENTIMENT_NEGATIVE = 'N'
+    SENTIMENT_NONE = 'NONE'
+    SENTIMENT_NEUTRAL = 'NEU'
+
+    import xml.etree.ElementTree as ET
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    data = []
+    for tweet in root.findall('tweet'):
+        temp = []
+        content = tweet.find('content').text
+        content = content.encode("utf-8")
+        content = clean_str(content)
+        temp.append(content)
+        #polarity = tweet.find('sentiment').find('polarity').find('value').text
+        polarity = qrel.readline().split()[1]
+        if polarity == SENTIMENT_POSITIVE:
+            temp.append(1)
+        elif polarity == SENTIMENT_NEGATIVE:
+            temp.append(-1)
+        elif polarity == SENTIMENT_NEUTRAL:
+            temp.append(0)
+        else :
+            temp.append(2)
+        data.append(temp)
+    qrel.close()
+    return data
 #%% Get batch for training
 # Call Example 
 # batch,sentiment = getBatch(data,1,10)
@@ -147,7 +197,7 @@ def get_batch(data,start,end):
                 #print content
             batch.append(sentence)
             sentiment.append(s)
-    return batch,sentiment
+    return np.array(batch),np.array(sentiment)
 
 def load_fast_text(path):
     import fasttext
@@ -155,30 +205,37 @@ def load_fast_text(path):
     return model
 
 def load_glove(path):
-    #python -m gensim.scripts.glove2word2vec -i model_glove_100 -o model_glove_100_modified
-    return load_word2vec(path,binary = True)
+    #python -m gensim.scripts.glove2word2vec -i model_glove_1000 -o model_glove_1000_modified
+    #return Word2Vec.load(path)
+    #return load_word2vec(path,binary = True)
+    from gensim.models.keyedvectors import KeyedVectors
+    word_vectors = KeyedVectors.load_word2vec_format(path, binary=True)
+    #print word_vectors['nada']
+    return word_vectors
 
 def train_embeddings():
     clean_dataset_for_embedings('/home/alonzo/Documentos/Projects/wikipedia_dataset.txt',TRAINING_FILE)
-    #print 'Start fasttext'
-    #train_fasttext(TRAINING_FILE)
-    print 'Start glove'
-    train_glove(TRAINING_FILE)
-    #print 'Start word2vec'
-    #train_word2vec(TRAINING_FILE)
+    print 'Start fasttext'
+    train_fasttext(TRAINING_FILE)
+    #print 'Start glove'
+    #train_glove(TRAINING_FILE)
+    print 'Start word2vec'
+    train_word2vec(TRAINING_FILE)
 
 #train_embeddings()
 
 #m_fasttext = load_fast_text('embeddings_models/model_fasttext_'+str(TRAINING_SENTENCES)+'.vec')
-m_fasttext = load_word2vec('embeddings_models/model_fasttext_'+str(TRAINING_SENTENCES)+'.vec',binary = False)
+#m_fasttext = load_word2vec('embeddings_models/model_fasttext_'+str(TRAINING_SENTENCES)+'.vec',binary = False)
 #m_glove = load_glove('embeddings_models/model_glove_'+str(TRAINING_SENTENCES)+'_modified')
-m_word2vec = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
-m_glove    = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
+#word_vectors = KeyedVectors.load_word2vec_format('embeddings_models/model_glove_1000_modified', binary=True)
+#m_word2vec = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
+#m_glove    = load_word2vec('embeddings_models/model_word2vec_'+str(TRAINING_SENTENCES),binary = False)
 
-data = build_data_set_from_xml('datasets/intertass-train-tagged.xml')
-#data = build_data_set_from_xml('datasets/intertass-test.xml')
-batch,sentiment = get_batch(data,0,5)
-sentiment = np.array(sentiment)
-batch = np.array(batch)
-print sentiment.shape
-print batch.shape
+#data = build_data_set_from_xml('datasets/intertass-train-tagged.xml')
+data = build_data_set_test_from_xml('datasets/intertass-test.xml','datasets/intertass-sentiment.qrel')
+#print data
+#batch,sentiment = get_batch(data,0,1898)
+#sentiment = np.array(sentiment)
+#batch = np.array(batch)
+#print sentiment.shape
+#print batch.shape
